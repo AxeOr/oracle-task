@@ -18,7 +18,9 @@ const createGLS = async () => {
       "https://guidedlearning.oracle.com/player/latest/api/scenario/get/v_IlPvRLRWObwLnV5sTOaw/5szm2kaj/?callback=__5szm2kaj&refresh=true&env=dev&type=startPanel&vars%5Btype%5D=startPanel&sid=none&_=1582203987867";
     const res = await getJsonData(URL);
     if (res.success) {
-      alert("Data retrieved successfully");
+      // Adding provided css
+      var style = '<style type="text/css">' + res.data.css + "</style>";
+      $("head").append(style);
     }
   } catch (err) {
     console.log(err);
