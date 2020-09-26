@@ -18,25 +18,7 @@ const getJsonData = (url) => {
   });
 };
 
-const findFirstStepByOrdinal = (stepsArray) => {
-  const firstStep = stepsArray.reduce((prev, curr) =>
-    prev.action.stepOrdinal < curr.action.stepOrdinal ? prev : curr
-  );
-  if (
-    stepsArray.some(
-      (step) =>
-        step.action.stepOrdinal === firstStep.action.stepOrdinal &&
-        step.uid !== firstStep.uid
-    )
-  ) {
-    //  two or more steps with a minimum ordinal, sort them by id
-    // Ask about this TODO
-  }
-  return firstStep;
-};
-
 const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
-  console.log(currentStep);
   // Todo not sure this is right
   if (currentStep.action.type === "closeScenario") {
     $("div.sttip").remove();
@@ -45,22 +27,24 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
   if (currentStep.action.onlyOneTip) {
     $("div.sttip").remove();
   }
-  // Todo
-  let tip = $(tiplates.tip);
+  //
+
+  let tip = $(tiplates[currentStep.action.type]);
   tip
     .find("div[data-iridize-id=content]")
     .html(currentStep.action.contents["#content"]);
-
   tip.find("span[data-iridize-role=stepCount]").html(stepIndex + 1);
-
   tip.find("span[data-iridize-role=stepsCount]").html(stepsCount);
+  tip.addClass(currentStep.action.classes);
 
   const tipDiv =
-    `<div id=${currentStep.uid} class="sttip"><div class="tooltip ${currentStep.action.classes} in ${currentStep.action.placement} panel-container"><div class="popover-inner guide-content">` +
+    `<div id=${currentStep.uid} class="sttip${
+      currentStep.action.fixed ? " panel" : ""
+    }"><div class="tooltip ${currentStep.action.classes} in ${
+      currentStep.action.placement
+    } panel-container"><div class="popover-inner guide-content">` +
     tip.html() +
     "</div></div></div>";
-
-  tip.addClass(currentStep.action.classes);
 
   // Adding the new tooltip to the selector's parent
   $(currentStep.action["selector"]).last().parent().append(tipDiv);
@@ -74,7 +58,7 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
     });
   }
 
-  // adding listeners
+  // Adding listeners
   tipDomOjbect
     .find("button[data-iridize-role=closeBt]")
     .on("click", () => $("#" + currentStep.uid).remove());
@@ -83,8 +67,7 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
     .find("button[data-iridize-role=laterBt]")
     .on("click", () => $("#" + currentStep.uid).remove());
 
-  // SHOULD ADDRESS CONFITION AND NEXT IN A GENERIC WAY! TODO
-  // create one event listener for all conditioned followers
+  // Create one event listener for all conditioned followers
   tipDomOjbect.find("a[data-iridize-role=nextBt]").on("click", () => {
     currentStep.followers.forEach((follower) => {
       var objIndex = globalStepsArray.findIndex(
@@ -102,7 +85,7 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
     });
   });
 
-  // if the follower doesnt have a condition, create it now
+  // If the follower doesnt have a condition, create it now
   currentStep.followers.forEach((follower) => {
     if (!follower.condition) {
       var objIndex = globalStepsArray.findIndex(
@@ -118,7 +101,7 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
     }
   });
 
-  // create parent tip when clicking back
+  // Create parent tip when clicking back
   tipDomOjbect.find("button[data-iridize-role=prevBt]").on("click", () => {
     if (currentStep.previous) {
       var objIndex = globalStepsArray.findIndex(
@@ -133,7 +116,6 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
     }
   });
 
-  // Todo not sure this is right
   if (currentStep.action.watchSelector) {
     $(currentStep.action["selector"])
       .first()
@@ -159,16 +141,13 @@ const createGLS = async () => {
       // Creating the tooltip according to the JSON data
       // Count number of tips in array
       const tipsCount = res.data.structure.steps.filter(
-        (step) => step.action.type === "tip"
+        (step) => step.action.type === "tip" || step.action.type === "hovertip"
       ).length;
       if (tipsCount) {
         globalStepsArray = res.data.structure.steps;
-        const firstStep = findFirstStepByOrdinal(globalStepsArray);
-        var objIndex = globalStepsArray.findIndex(
-          (step) => step.id === firstStep.id
-        );
-        globalStepsArray[objIndex].previous = null;
-        createTipDiv(firstStep, 0, tipsCount, res.data.tiplates);
+        // Can assume the first step is first in order
+        globalStepsArray[0].previous = null;
+        createTipDiv(globalStepsArray[0], 0, tipsCount, res.data.tiplates);
       }
     }
   } catch (err) {
