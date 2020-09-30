@@ -3,7 +3,9 @@ const URL =
   "https://guidedlearning.oracle.com/player/latest/api/scenario/get/v_IlPvRLRWObwLnV5sTOaw/5szm2kaj/?callback=__5szm2kaj&refresh=true&env=dev&type=startPanel&vars%5Btype%5D=startPanel&sid=none&_=1582203987867";
 const requestType = "GET";
 const dataTypeExpected = "jsonp";
+const isFetching = true;
 let globalStepsArray = [];
+let res = {};
 
 const getJsonData = (url) => {
   return $.ajax({
@@ -18,6 +20,39 @@ const getJsonData = (url) => {
   });
 };
 
+const getOffset = (currentStep) => {
+  // Generating an offest for current step (tip) in order to position it on screen
+  let newTipWidth = $("#" + currentStep.uid + " :first-child").width();
+  let newTipHeight = $("#" + currentStep.uid + " :first-child").height();
+  const cssPadding = 24; // TODO make this generic
+  let selectorsOffset = $(currentStep.action["selector"]).last().offset();
+  let selectorsWidth = $(currentStep.action["selector"]).last().width();
+  let selectorsHeight = $(currentStep.action["selector"]).last().height();
+  let newTipOffset = { top: 0, left: 0 };
+
+  if (currentStep.action.placement === "right") {
+    selectorsOffset.left += selectorsWidth;
+    selectorsOffset.top += selectorsHeight / 2;
+  } else if (currentStep.action.placement === "bottom") {
+    selectorsOffset.top += selectorsHeight;
+    selectorsOffset.left += selectorsWidth / 2;
+  }
+  newTipOffset.top = selectorsOffset.top;
+  newTipOffset.left = selectorsOffset.left;
+  if (newTipOffset.left + newTipWidth + cssPadding > $(window).width()) {
+    newTipOffset.left = $(window).width() - cssPadding - newTipWidth;
+  } else if (newTipOffset.left - cssPadding < 0) {
+    newTipOffset.left = cssPadding;
+  }
+
+  if (newTipOffset.top + newTipHeight + cssPadding > $(window).height()) {
+    newTipOffset.top = $(window).height() - cssPadding - newTipWidth;
+  } else if (newTipOffset.top - cssPadding < 0) {
+    newTipOffset.top = cssPadding;
+  }
+  return newTipOffset;
+};
+
 const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
   // Todo not sure this is right
   if (currentStep.action.type === "closeScenario") {
@@ -27,8 +62,6 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
   if (currentStep.action.onlyOneTip) {
     $("div.sttip").remove();
   }
-  //
-
   let tip = $(tiplates[currentStep.action.type]);
   tip
     .find("div[data-iridize-id=content]")
@@ -46,9 +79,18 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
     tip.html() +
     "</div></div></div>";
 
-  // Adding the new tooltip to the selector's parent
-  $(currentStep.action["selector"]).last().parent().append(tipDiv);
+  tip.addClass(currentStep.action.classes);
+
+  // Adding the new tooltip to the page using the selector's offset
+  $("body").append(tipDiv);
   let tipDomOjbect = $("#" + currentStep.uid);
+  tipDomOjbect.offset(getOffset(currentStep));
+  // Make sure the offest remain accurate when resizing screen
+  $(window).on({
+    resize: function () {
+      $("#" + currentStep.uid).offset(getOffset(currentStep));
+    },
+  });
 
   if (currentStep.action.roleTexts) {
     Object.keys(currentStep.action.roleTexts).forEach((role) => {
@@ -132,7 +174,9 @@ const createTipDiv = (currentStep, stepIndex, stepsCount, tiplates) => {
 
 const createGLS = async () => {
   try {
-    const res = await getJsonData(URL);
+    if (isFetching) {
+      res = await getJsonData(URL);
+    }
     if (res.success) {
       // Adding provided css
       var style = '<style type="text/css">' + res.data.css + "</style>";
